@@ -35,16 +35,19 @@ router.post('/enroll', async (req, res) => {
 // demo scan control, using patient_id directly.
 // Body: { "template_id": 7 }  OR  { "patient_id": "P1001" }
 router.post('/identify', async (req, res) => {
-  const { template_id, patient_id } = req.body || {};
+  const { template_id, biometric_id, unique_id, patient_id } = req.body || {};
   let p = null;
 
   try {
-    if (template_id !== undefined) {
-      p = await store.findPatientByTemplate(Number(template_id));
+    if (template_id !== undefined || biometric_id !== undefined) {
+      const resolvedTemplateId = template_id !== undefined ? template_id : biometric_id;
+      p = await store.findPatientByTemplate(Number(resolvedTemplateId));
+    } else if (unique_id) {
+      p = await store.getPatientById(String(unique_id).toUpperCase());
     } else if (patient_id) {
       p = await store.getPatientById(String(patient_id).toUpperCase());
     } else {
-      return res.status(400).json({ error: 'template_id or patient_id is required' });
+      return res.status(400).json({ error: 'biometric template, biometric_id, unique_id, or patient_id is required' });
     }
 
     if (!p) return res.status(404).json({ error: 'No matching patient record' });

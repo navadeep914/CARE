@@ -29,6 +29,18 @@ router.post('/', async (req, res) => {
   const { name, age } = req.body || {};
   if (!name || !age) return res.status(400).json({ error: 'name and age are required' });
 
+  const templateId = req.body.fingerprintTemplateId ?? req.body.biometricTemplateId ?? req.body.template_id;
+  if (templateId === undefined || templateId === null || String(templateId).trim() === '') {
+    return res.status(400).json({ error: 'Fingerprint template is required before patient data can be stored.' });
+  }
+
+  const numericTemplateId = Number(templateId);
+  if (!Number.isFinite(numericTemplateId) || numericTemplateId <= 0) {
+    return res.status(400).json({ error: 'Fingerprint template must be a valid positive number.' });
+  }
+
+  req.body.fingerprintTemplateId = numericTemplateId;
+
   try {
     const patient = await store.createPatient(req.body);
     res.status(201).json(serializePatient(patient));

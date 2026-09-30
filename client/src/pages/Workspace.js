@@ -22,11 +22,12 @@ function ConsultField({ icon, label, value, onChange, placeholder, hint }) {
   );
 }
 
-export default function Workspace({ patientId, patients, queue, visits, providerName, toast, refreshAll, navigate }) {
+export default function Workspace({ role, patientId, patients, queue, visits, providerName, toast, refreshAll, navigate }) {
   const patient = findPatient(patients, patientId);
   const [priority, setPriority] = useState('normal');
   const [labInput, setLabInput] = useState(patient ? patient.labSummary || '' : '');
   const [draft, setDraft] = useState({ vitals: '', conditions: '', medications: '', notes: '' });
+  const isDoctor = role === 'DOCTOR';
 
   useEffect(() => {
     setLabInput(patient ? patient.labSummary || '' : '');
@@ -96,15 +97,23 @@ export default function Workspace({ patientId, patients, queue, visits, provider
             <QueueStatusBadge entry={activeQ} />
           ) : (
             <>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ padding: '9px 10px' }}>
+              <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ padding: '9px 10px' }} disabled={!isDoctor}>
                 <option value="normal">Routine</option>
                 <option value="urgent">Urgent</option>
               </select>
-              <button className="btn btn-primary" onClick={addToQueue}><Icon name="users" />Add to Queue</button>
+              <button className="btn btn-primary" onClick={addToQueue} disabled={!isDoctor}><Icon name="users" />Add to Queue</button>
             </>
           )}
         </div>
       </div>
+
+      {!isDoctor && (
+        <div className="card" style={{ borderColor: 'var(--primary)', background: 'var(--primary-tint)' }}>
+          <div className="field-hint" style={{ marginTop: 0, color: 'var(--primary-dark)', fontWeight: 700 }}>
+            Receptionist view: consultation notes and medical updates are restricted to authorized doctors.
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="table-card-title" style={{ marginBottom: 12 }}><Icon name="idcard" />Patient overview</div>
@@ -124,21 +133,21 @@ export default function Workspace({ patientId, patients, queue, visits, provider
         <div className="ov-block">
           <label className="field-label">Lab summary / findings</label>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <input type="text" style={{ flex: 1, minWidth: 220 }} value={labInput} onChange={(e) => setLabInput(e.target.value)} placeholder="e.g. CBC normal; ECG normal" />
-            <button className="btn btn-outline btn-sm" onClick={saveLab}>Save</button>
+            <input type="text" style={{ flex: 1, minWidth: 220 }} value={labInput} onChange={(e) => setLabInput(e.target.value)} placeholder="e.g. CBC normal; ECG normal" disabled={!isDoctor} />
+            <button className="btn btn-outline btn-sm" onClick={saveLab} disabled={!isDoctor}>Save</button>
           </div>
         </div>
       </div>
 
       <div className="card">
-        <div className="table-card-title" style={{ marginBottom: 16 }}><Icon name="clipboard" />EHR Consultation Entry</div>
+        <div className="table-card-title" style={{ marginBottom: 16 }}><Icon name="clipboard" />{isDoctor ? 'EHR Consultation Entry' : 'Clinical Notes (Doctor Access Only)'}</div>
         <div className="consult-grid">
           <ConsultField icon="vitals" label="Vital signs" value={draft.vitals} onChange={(v) => setDraft((d) => ({ ...d, vitals: v }))} placeholder="BP 118/76; HR 74; SpO2 99%" hint="Record standard clinical observations." />
           <ConsultField icon="tag" label="Current conditions" value={draft.conditions} onChange={(v) => setDraft((d) => ({ ...d, conditions: v }))} placeholder="e.g. Asthma" hint="State ongoing diseases or clinical issues." />
           <ConsultField icon="pill" label="Prescribed medications" value={draft.medications} onChange={(v) => setDraft((d) => ({ ...d, medications: v }))} placeholder="e.g. Budesonide inhaler" hint="Specify treatment prescriptions." />
           <ConsultField icon="chat" label="Doctor notes" value={draft.notes} onChange={(v) => setDraft((d) => ({ ...d, notes: v }))} placeholder="e.g. Avoid known triggers." hint="General notes (optional)." />
         </div>
-        <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={saveConsult}><Icon name="check" />Save Consultation Entry</button>
+        <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={saveConsult} disabled={!isDoctor}><Icon name="check" />Save Consultation Entry</button>
       </div>
 
       <div className="card">

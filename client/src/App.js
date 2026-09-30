@@ -12,13 +12,34 @@ import Settings from './pages/Settings';
 import Workspace from './pages/Workspace';
 import { api } from './api';
 
-export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [justSignedOut, setJustSignedOut] = useState(false);
-  const [providerName, setProviderName] = useState('Dr. Reddy');
-  const [providerUsername, setProviderUsername] = useState('dr.reddy');
+const SESSION_KEY = 'caredesk-session';
+const DEFAULT_VIEW_BY_ROLE = {
+  DOCTOR: 'dashboard',
+  RECEPTIONIST: 'dashboard',
+};
+const ALLOWED_VIEWS_BY_ROLE = {
+  DOCTOR: ['dashboard', 'scan', 'queue', 'patients', 'consultations', 'reports', 'settings', 'workspace'],
+  RECEPTIONIST: ['dashboard', 'register', 'scan', 'queue', 'patients', 'settings', 'workspace'],
+};
 
-  const [view, setView] = useState('dashboard');
+function readStoredSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export default function App() {
+  const storedSession = readStoredSession();
+  const [loggedIn, setLoggedIn] = useState(Boolean(storedSession));
+  const [justSignedOut, setJustSignedOut] = useState(false);
+  const [userRole, setUserRole] = useState(storedSession?.role || 'DOCTOR');
+  const [providerName, setProviderName] = useState(storedSession?.displayName || 'Dr. Ada James');
+  const [providerUsername, setProviderUsername] = useState(storedSession?.username || 'doctor');
+
+  const [view, setView] = useState(DEFAULT_VIEW_BY_ROLE[storedSession?.role || 'DOCTOR']);
   const [currentPatientId, setCurrentPatientId] = useState(null);
   const [scanSimId, setScanSimId] = useState('');
 
@@ -56,24 +77,86 @@ export default function App() {
     return () => clearInterval(id);
   }, [loggedIn, refreshAll]);
 
+  useEffect(() => {
+    if (!loggedIn) return;
+    const params = new URLSearchParams(window.location.search);
+    const requestedView = params.get('view');
+    const allowed = ALLOWED_VIEWS_BY_ROLE[userRole] || ALLOWED_VIEWS_BY_ROLE.DOCTOR;
+    if (requestedView && !allowed.includes(requestedView)) {
+      const safeView = DEFAULT_VIEW_BY_ROLE[userRole] || 'dashboard';
+      setView(safeView);
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set('view', safeView);
+      window.history.replaceState({}, '', nextUrl);
+      toast('This section is not available for your role.');
+      return;
+    }
+    if (requestedView && requestedView !== view) {
+      setView(requestedView);
+    }
+  }, [loggedIn, userRole, view, toast]);
+
+  function updateRoute(nextView) {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('view', nextView);
+    window.history.replaceState({}, '', nextUrl);
+  }
+
   function navigate(nextView, simId) {
+    const allowed = ALLOWED_VIEWS_BY_ROLE[userRole] || ALLOWED_VIEWS_BY_ROLE.DOCTOR;
+    if (!allowed.includes(nextView)) {
+      toast('This section is restricted to your role.');
+      return;
+    }
     setView(nextView);
     setCurrentPatientId(null);
     if (nextView === 'scan') setScanSimId(simId || '');
+    updateRoute(nextView);
   }
+
   function openWorkspace(patientId) {
+    const allowed = ALLOWED_VIEWS_BY_ROLE[userRole] || ALLOWED_VIEWS_BY_ROLE.DOCTOR;
+    if (!allowed.includes('workspace')) {
+      toast('Workspace access is restricted for this role.');
+      return;
+    }
     setCurrentPatientId(patientId);
     setView('workspace');
+    updateRoute('workspace');
   }
-  function handleLogin({ providerUsername: u, providerName: n }) {
-    setProviderUsername(u);
-    setProviderName(n);
-    setLoggedIn(true);
-    setView('dashboard');
+
+  async function handleLogin({ role, username, password }) {
+    try {
+      const result = await api.login({ role, username, password });
+      const nextUser = result.user;
+      const safeRole = nextUser.role || role;
+      const session = { username: nextUser.username, displayName: nextUser.displayName, role: safeRole };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      setProviderUsername(nextUser.username);
+      setProviderName(nextUser.displayName);
+      setUserRole(safeRole);
+      setLoggedIn(true);
+      setJustSignedOut(false);
+      const defaultView = DEFAULT_VIEW_BY_ROLE[safeRole] || 'dashboard';
+      setView(defaultView);
+      updateRoute(defaultView);
+    } catch (err) {
+      throw err;
+    }
   }
+
   function handleLogout() {
+    localStorage.removeItem(SESSION_KEY);
     setLoggedIn(false);
+    setUserRole('DOCTOR');
+    setProviderName('Dr. Ada James');
+    setProviderUsername('doctor');
+    setCurrentPatientId(null);
+    setView('dashboard');
     setJustSignedOut(true);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete('view');
+    window.history.replaceState({}, '', nextUrl);
   }
 
   if (!loggedIn) {
@@ -88,7 +171,7 @@ export default function App() {
 
   let page = null;
   if (view === 'dashboard') {
-    page = <Dashboard patients={patients} queue={queue} visits={visits} providerName={providerName} navigate={navigate} openWorkspace={openWorkspace} />;
+    page = <Dashboard role={userRole} patients={patients} queue={queue} visits={visits} providerName={providerName} navigate={navigate} openWorkspace={openWorkspace} />;
   } else if (view === 'register') {
     page = <RegisterPatient patients={patients} onRegistered={refreshAll} navigate={navigate} toast={toast} providerName={providerName} />;
   } else if (view === 'scan') {
@@ -106,6 +189,7 @@ export default function App() {
   } else if (view === 'workspace') {
     page = (
       <Workspace
+        role={userRole}
         patientId={currentPatientId}
         patients={patients}
         queue={queue}
@@ -118,12 +202,14 @@ export default function App() {
     );
   }
 
+  const allowedViews = ALLOWED_VIEWS_BY_ROLE[userRole] || ALLOWED_VIEWS_BY_ROLE.DOCTOR;
+
   return (
     <div id="app-shell" className="active">
-      <Sidebar view={view} onNavigate={navigate} providerName={providerName} onLogout={handleLogout} />
+      <Sidebar role={userRole} view={view} allowedViews={allowedViews} onNavigate={navigate} providerName={providerName} onLogout={handleLogout} />
       <div id="content">
         {page}
-        <footer className="appfoot">CareDesk · MERN Stack · All patient records are fictional</footer>
+        <footer className="appfoot">CareDesk · Single-source patient data · Role-aware access</footer>
       </div>
       <div className={`toast ${toastMsg ? 'show' : ''}`}>{toastMsg}</div>
     </div>

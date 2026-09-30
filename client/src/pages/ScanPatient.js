@@ -73,7 +73,7 @@ export default function ScanPatient({ patients, initialSimId, openWorkspace }) {
       <ScanCard
         eyebrow="BIOMETRIC SCAN"
         title="Patient Identification"
-        subtitle="Place the patient's finger on the reader to retrieve their clinical EHR file automatically. No actual biometric templates are stored."
+        subtitle="To retrieve patient data, the patient must provide either their biometric scan or their unique Patient ID."
         phase={phase}
         onCapture={initializeScan}
         captureLabel="Initialize Scan"
@@ -87,10 +87,10 @@ export default function ScanPatient({ patients, initialSimId, openWorkspace }) {
 
       <div className="card lookup-card">
         <div className="lookup-head"><Icon name="search" />Manual ID Lookup</div>
-        <p>If the fingerprint scanner fails, look up the patient record using their Secure Identification ID.</p>
+        <p>If the fingerprint scanner fails, look up the patient record using their unique Patient ID or biometric reference.</p>
         <div className="lookup-row">
           <div className="field">
-            <label className="field-label">SECURE BIOMETRIC ID REFERENCE</label>
+            <label className="field-label">UNIQUE PATIENT ID / BIOMETRIC REFERENCE</label>
             <input type="text" value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="e.g. P1001" />
           </div>
           <button className="btn btn-outline" style={{ marginBottom: 14 }} onClick={manualLookup}><Icon name="search" />Retrieve Record</button>

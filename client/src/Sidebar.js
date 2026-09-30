@@ -12,7 +12,9 @@ export const NAV = [
   { key: 'settings', label: 'Settings', icon: 'gear' },
 ];
 
-export default function Sidebar({ view, onNavigate, providerName, onLogout }) {
+export default function Sidebar({ role, view, allowedViews = NAV.map((n) => n.key), onNavigate, providerName, onLogout }) {
+  const visibleNav = NAV.filter((n) => allowedViews.includes(n.key));
+
   return (
     <aside id="sidebar">
       <div className="side-logo">
@@ -20,7 +22,7 @@ export default function Sidebar({ view, onNavigate, providerName, onLogout }) {
         <div className="word">CareDesk</div>
       </div>
       <nav className="side-nav">
-        {NAV.map((n) => (
+        {visibleNav.map((n) => (
           <button
             key={n.key}
             className={view === n.key ? 'active' : ''}
@@ -34,6 +36,7 @@ export default function Sidebar({ view, onNavigate, providerName, onLogout }) {
       <div className="side-foot">
         <div className="box">
           <div className="pname">{providerName}</div>
+          <div className="side-role">{role === 'DOCTOR' ? 'Doctor' : 'Receptionist'}</div>
           <button className="logout" onClick={onLogout}>↩ Logout</button>
         </div>
       </div>

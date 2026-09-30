@@ -101,6 +101,21 @@ const store = {
   },
 
   async createPatient(payload) {
+    const templateId = payload.fingerprintTemplateId ?? payload.biometricTemplateId ?? payload.template_id;
+    if (templateId === undefined || templateId === null || String(templateId).trim() === '') {
+      throw new Error('Fingerprint template is required before patient data can be stored.');
+    }
+
+    const fingerprintTemplateId = Number(templateId);
+    if (!Number.isFinite(fingerprintTemplateId) || fingerprintTemplateId <= 0) {
+      throw new Error('Fingerprint template must be a valid positive number.');
+    }
+
+    const existing = await this.findPatientByTemplate(fingerprintTemplateId);
+    if (existing) {
+      throw new Error(`That fingerprint is already linked to patient ${existing.id}`);
+    }
+
     const id = payload.id || (await this.nextPatientId());
     const newPatient = {
       id,
@@ -116,7 +131,7 @@ const store = {
       history: payload.history || '',
       labSummary: payload.labSummary || '',
       labUpdatedAt: payload.labUpdatedAt || '',
-      fingerprintTemplateId: payload.fingerprintTemplateId !== undefined ? payload.fingerprintTemplateId : null,
+      fingerprintTemplateId,
       registeredAt: payload.registeredAt || new Date().toISOString(),
       registeredBy: payload.registeredBy || 'Front Desk',
     };

@@ -60,9 +60,12 @@ export default function RegisterPatient({ patients, onRegistered, navigate, toas
     setPhase('scanning');
     setTimeout(async () => {
       try {
-        const patient = await api.createPatient({ ...draft, registeredBy: providerName });
-        const templateId = patients.length + 1;
-        await api.enroll({ patient_id: patient.id, template_id: templateId });
+        const templateId = Number(Date.now() % 900000 + 100000);
+        const patient = await api.createPatient({
+          ...draft,
+          fingerprintTemplateId: templateId,
+          registeredBy: providerName,
+        });
         setLastId(patient.id);
         setPhase('success');
         setStep(3);
@@ -112,7 +115,7 @@ export default function RegisterPatient({ patients, onRegistered, navigate, toas
         <ScanCard
           eyebrow="BIOMETRIC SCAN"
           title="Fingerprint Capture"
-          subtitle="Ask the patient to place their thumb on the reader and hold still. Their unique Patient ID is generated the moment the impression is captured."
+          subtitle="A fingerprint is required before patient data can be stored. Place the patient's thumb on the reader and hold still to generate the secure template."
           phase={phase}
           onCapture={capture}
           captureLabel="Initialize Capture"
@@ -131,7 +134,7 @@ export default function RegisterPatient({ patients, onRegistered, navigate, toas
             <div className="mt">{[lastPatient.age ? `${lastPatient.age} yrs` : '', lastPatient.gender, lastPatient.blood].filter(Boolean).join(' · ')}</div>
           </div>
           <div className="field-hint" style={{ marginTop: 12 }}>
-            This Patient ID is now permanently linked to their thumb impression. Next time this patient scans their thumb, their full record opens instantly on the Scan Patient page.
+            This Patient ID is now permanently linked to their thumb impression. To retrieve the record later, the patient must provide the biometric scan or their unique Patient ID.
           </div>
           <div className="head-actions" style={{ marginTop: 16 }}>
             <button className="btn btn-primary" onClick={() => { setDraft(emptyDraft()); setStep(1); setPhase('idle'); }}>

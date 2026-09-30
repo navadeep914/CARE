@@ -8,14 +8,17 @@ const patientsRouter = require('./routes/patients');
 const queueRouter = require('./routes/queue');
 const visitsRouter = require('./routes/visits');
 const sensorRouter = require('./routes/sensor'); // exposes /api/enroll and /api/identify
+const authRouter = require('./routes/auth');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use('/api/auth', authRouter);
 app.use('/api/patients', patientsRouter);
 app.use('/api/queue', queueRouter);
 app.use('/api/visits', visitsRouter);
+app.use('/api/biometric', sensorRouter);
 app.use('/api', sensorRouter);
 
 app.get('/api/health', (req, res) => {
